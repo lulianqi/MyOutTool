@@ -21,7 +21,7 @@ namespace MyCommonHelper.FileHelper
 {
     /// <summary>
     /// 单个元素支持包括tab，换行回车（\r\n），空内容等在内的所有文本字符 （在使用时请确定文件的编码方式）
-    /// 可指定元素分割符，行非官方必须为\r\n(\r\n可以作为内容出现在元素中)，转义字符必须为".
+    /// 可指定元素分割符，换行官方必须为\r\n(\r\n可以作为内容出现在元素中)，转义字符必须为".
     /// 转义所有的引号必须出现在首尾（如果不在首尾，则不会按转义符处理，直接作为引号处理）[excel可以读取转义出现在中间的情况，而本身存储不会使用这种方式，保存时并会强制修复这种异常，所以这里遇到中间转义的情况直接抛出指定异常]
     /// 如果在被转义的情况下需要出现引号，则使用2个引号代替（如果需要在首部使用双引号，则需要转义该元素，其他地方可直接使用）（excel对所有双引号都进行转义，无论其出现位置,对于保存方式可以选择是否按excel的方式进行保存）
     /// 每一行的结尾是不需要逗号结束的，如果多加一个逗号则标识该行会多一个空元素
@@ -120,7 +120,7 @@ namespace MyCommonHelper.FileHelper
         /// <summary>
         /// Initialises the reader to work from an existing stream
         /// </summary>
-        /// <param name="stream">Stream</param>
+        /// <param name="stream">Stream  ( new MemoryStream(Encoding.Default.GetBytes(csvString ?? "")))</param>
         public CsvFileHelper(Stream stream):this(stream, Encoding.Default)
         {
         }
@@ -150,6 +150,29 @@ namespace MyCommonHelper.FileHelper
         /// <param name="encoding">Encoding</param>
         /// <param name="yourSeparator"> the Separator char</param>
         public CsvFileHelper(Stream stream, Encoding encoding, char yourSeparator): this(stream, encoding)
+        {
+            CsvSeparator = yourSeparator;
+        }
+
+        /// <summary>
+        /// Initialises the reader to work from an existing string
+        /// </summary>
+        /// <param name="useStringCsv">just set it null</param>
+        /// <param name="csvString">csv string</param>
+        public CsvFileHelper(object useStringCsv , string csvString)
+            : this(new MemoryStream(Encoding.Default.GetBytes(csvString ?? "")), Encoding.Default)
+        {
+            
+        }
+
+        /// <summary>
+        /// Initialises the reader to work from an existing string
+        /// </summary>
+        /// <param name="useStringCsv">just set it null</param>
+        /// <param name="csvString">csv string</param>
+        /// <param name="yourSeparator"></param>
+        public CsvFileHelper(object useStringCsv,string csvString, char yourSeparator)
+            : this(new MemoryStream(Encoding.Default.GetBytes(csvString ?? "")), Encoding.Default)
         {
             CsvSeparator = yourSeparator;
         }
@@ -208,6 +231,10 @@ namespace MyCommonHelper.FileHelper
                     else if (character == '"' && line[i + 1] == '"') //双引号转义
                     {
                         i++; //跳过下一个字符
+                        if (line.Length - 1 == i)//异常结束，转义未收尾
+                        {
+                            isNotEnd = true;
+                        }
                     }
                     else if (character == '"') //双引号单独出现（这种情况实际上已经是格式错误，为了兼容可暂时不处理）
                     {
@@ -294,6 +321,14 @@ namespace MyCommonHelper.FileHelper
                 else if (character == '"' && line[i + 1] == '"') //双引号转义
                 {
                     i++; //跳过下一个字符
+                    if (line.Length - 1 == i)//异常结束，转义未收尾
+                    {
+                        _columnBuilder.Append(character);
+                        _columnBuilder.Append("\r\n");
+                        Fields.Add(_columnBuilder.ToString());
+                        return Fields;
+                    }
+                    
                 }
                 else if (character == '"') //双引号单独出现（这种情况实际上已经是格式错误，转义用双引号一定是【,"】【",】形式，包含在里面的双引号需要使用一对双引号进行转义）
                 {
